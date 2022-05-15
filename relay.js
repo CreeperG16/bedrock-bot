@@ -7,25 +7,33 @@ class Relay extends EventEmitter {
 
         this.relay = new bedrock.Relay(opts);
 
-        this.relay.on("clientbound", (data) => {
-            this.emit("clientbound", {
-                ...data,
-                cancel() {
-                    data.name = "";
-                    data.params = {};
-                },
+        this.relay.on("join", (player) => {
+            this.emit("join", player);
+
+            player.prependListener("clientbound", (data) => {
+                data = {
+                    ...data,
+                    cancel() {
+                        data.name = "";
+                        data.params = {};
+                    },
+                };
+            });
+
+            player.prependListener("serverbound", (data) => {
+                data = {
+                    ...data,
+                    cancel() {
+                        data.name = "";
+                        data.params = {};
+                    },
+                };
+                // console.log("serverbound", data.name);
             });
         });
 
-        this.relay.on("serverbound", (data) =>
-            this.emit("serverbound", {
-                ...data,
-                cancel() {
-                    data.name = "";
-                    data.params = {};
-                },
-            })
-        );
+        this.relay.listen();
+        console.log("Listening...");
     }
 }
 

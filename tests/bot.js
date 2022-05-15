@@ -1,8 +1,8 @@
-const Bot = require("./bot");
+const { Bot } = require("..");
 
 const bot = new Bot({
     host: "127.0.0.1",
-    port: 19130,
+    port: 25565,
     profilesFolder: "./msa",
     offline: true,
     username: "CreeperG" + Math.floor(Math.random() * 100),
@@ -15,9 +15,10 @@ bot.on("chat", async ({ message, sender }) => {
 
     if (sender === bot.username) return;
 
-    bot.chat(`${sender || "Someone"} says ${message}`);
+    // bot.chat(`${sender || "Someone"} says ${message}`);
 
-    if (message.startsWith(".exec")) await bot.runCommand(message.substring(6)).catch(() => {});
+    if (message.startsWith(".exec"))
+        console.dir(await bot.runCommand(message.substring(6)).catch(() => {}), { depth: null });
 
     if (message.startsWith(".tp"))
         await bot.teleport({ x: message.split(" ")[1], y: message.split(" ")[2], z: message.split(" ")[3] });
@@ -31,6 +32,8 @@ bot.on("chat", async ({ message, sender }) => {
 
     if (message === ".sayhi")
         bot.players.forEach(async (player) => player.runCommand(`/say Hi from ${player.username}!`).catch(() => {}));
+
+    if (message.startsWith(".chat")) bot.chat(message.substring(6));
 });
 
 bot.on("spawn", async () => {

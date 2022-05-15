@@ -135,49 +135,86 @@ class Bot extends EventEmitter {
                                     : pak.message,
                             sender: pak.source_name || pak.message.replace(/\* (\S+) (.+)/g, (...[, s]) => s),
                         });
+                    break;
+                case "player_list":
+                    if (pak.records.type === "add") {
+                        this.players = [
+                            ...this.players,
+                            ...pak.records.records.map((player) => new Player(player, this)),
+                        ];
+                    } else if (pak.records.type === "remove") {
+                        console.log(
+                            `[Bot] Removing players: ${JSON.stringify(
+                                this.players
+                                    .filter((player) => pak.records.records.map((x) => x.uuid).includes(player.uuid))
+                                    .map((x) => x.username)
+                            )
+                                .slice(1, -1)
+                                .replace(/"/g, "")}`
+                        );
+                        this.players = this.players.filter(
+                            (player) => !pak.records.records.map((x) => x.uuid).includes(player.uuid)
+                        );
+                    }
+                    break;
+                case "add_player":
+                    const added_player = this.players.filter((x) => x.uuid === pak.uuid)[0];
+                    if (!added_player) return;
+
+                    console.log(`[Bot] Adding entity data to player: ${added_player.username}`);
+                    added_player.addEntityData(pak);
+
+                    break;
+                case "remove_entity":
+                    const removed_player = this.players.filter((x) => x.entity_id === pak.entity_id_self)[0];
+                    if (!removed_player) return;
+
+                    console.log(`[Bot] Removing entity data for player: ${removed_player.username}`);
+                    removed_player.removeEntityData();
+                    break;
             }
         });
 
-        this.client.on("player_list", (packet) => {
-            // console.dir(packet, { depth: 3 });
+        // this.client.on("player_list", (packet) => {
+        //     // console.dir(packet, { depth: 3 });
 
-            if (packet.records.type === "add") {
-                this.players = packet.records.records.map((player) => new Player(player, this));
-            } else if (packet.records.type === "remove") {
-                console.log(
-                    `[Bot] Removing players: ${JSON.stringify(
-                        this.players
-                            .filter((player) => packet.records.records.map((x) => x.uuid).includes(player.uuid))
-                            .map((x) => x.username)
-                    )
-                        .slice(1, -1)
-                        .replace(/"/g, "")}`
-                );
-                this.players = this.players.filter(
-                    (player) => !packet.records.records.map((x) => x.uuid).includes(player.uuid)
-                );
-            }
-        });
+        //     if (packet.records.type === "add") {
+        //         this.players = packet.records.records.map((player) => new Player(player, this));
+        //     } else if (packet.records.type === "remove") {
+        //         console.log(
+        //             `[Bot] Removing players: ${JSON.stringify(
+        //                 this.players
+        //                     .filter((player) => packet.records.records.map((x) => x.uuid).includes(player.uuid))
+        //                     .map((x) => x.username)
+        //             )
+        //                 .slice(1, -1)
+        //                 .replace(/"/g, "")}`
+        //         );
+        //         this.players = this.players.filter(
+        //             (player) => !packet.records.records.map((x) => x.uuid).includes(player.uuid)
+        //         );
+        //     }
+        // });
 
-        this.client.on("add_player", (packet) => {
-            // console.log(packet);
+        // this.client.on("add_player", (packet) => {
+        //     // console.log(packet);
 
-            const player = this.players.filter((x) => x.uuid === packet.uuid)[0];
-            if (!player) return;
+        //     const player = this.players.filter((x) => x.uuid === packet.uuid)[0];
+        //     if (!player) return;
 
-            console.log(`[Bot] Adding entity data to player: ${player.username}`);
-            player.addEntityData(packet);
-        });
+        //     console.log(`[Bot] Adding entity data to player: ${player.username}`);
+        //     player.addEntityData(packet);
+        // });
 
-        this.client.on("remove_entity", (packet) => {
-            const player = this.players.filter((x) => x.entity_id === packet.entity_id_self)[0];
-            if (!player) return;
+        // this.client.on("remove_entity", (packet) => {
+        //     const player = this.players.filter((x) => x.entity_id === packet.entity_id_self)[0];
+        //     if (!player) return;
 
-            console.log(`[Bot] Removing entity data for player: ${player.username}`);
-            player.removeEntityData();
-        });
+        //     console.log(`[Bot] Removing entity data for player: ${player.username}`);
+        //     player.removeEntityData();
+        // });
 
-        this.client.on("move_player", () => {});
+        // this.client.on("move_player", () => {});
     }
 
     queue(...a) {
@@ -243,7 +280,7 @@ class Bot extends EventEmitter {
                 origin: {
                     type: "player",
                     uuid: request_id,
-                    request_id: request_id,
+                    request_id,
                 },
             });
         });
