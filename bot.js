@@ -28,6 +28,10 @@ class Player extends EventEmitter {
         );
     }
 
+    /**
+     * Teleport the player to a location or entity
+     * @param {{x: number, y: number, z: number, target: string, facing: {x: number, y: number, z: number, target: string}}} options
+     */
     async teleport({ x, y, z, target, facing }) {
         await this.runCommand(
             `/tp @s ${target ?? (x ?? "~") + " " + (y ?? "~") + " " + (z ?? "~")} ${
@@ -36,6 +40,33 @@ class Player extends EventEmitter {
                     : ""
             }`
         );
+    }
+
+    /**
+     * @returns {Promise<{position: {x: number, y: number, z: number}, dimension: 0|1|2 }>}
+     */
+    async getPosition() {
+        const testforblock_output = await this.runCommand("/testforblock ~~~ air");
+        const {
+            output: [
+                {
+                    parameters: [x, y, z],
+                },
+            ],
+        } = testforblock_output;
+        // console.log(testforblock_output);
+
+        const isOverworld =
+            (await this.runCommand("/fill ~ -1 ~ ~ -1 ~ bedrock 0 replace bedrock")).output[0].message_id ===
+            "commands.fill.success";
+        // console.log({ isOverworld });
+
+        const isNether =
+            (await this.runCommand("/fill ~ 129 ~ ~ 129 ~ bedrock 0 replace bedrock")).output[0].message_id ===
+            "commands.fill.outOfWorld";
+        // console.log({ isNether });
+
+        return { position: { x, y, z }, dimension: isOverworld ? 0 : isNether ? 1 : 2 };
     }
 
     addEntityData(data) {
@@ -67,11 +98,22 @@ class Player extends EventEmitter {
 
 class Bot extends EventEmitter {
     /**
-     * @param {object} opts
+     * @param {{
+     *  host: string,
+     *  port?: number,
+     *  username?: string,
+     *  offline?: boolean,
+     *  autoReconnect?: boolean,
+     *  profilesFolder?: string,
+     *  conLog?: (...args: any) => void,
+     *  onMsaCode?: (data: object) => void
+     * }} opts
      */
     constructor(opts) {
         super();
-        this.opts = opts;
+
+        this.opts = { port: 19132, ...opts, conLog() {} };
+        this.log = opts.conLog;
 
         this.players = [];
 
@@ -80,8 +122,8 @@ class Bot extends EventEmitter {
 
     _connect() {
         console.log(
-            `[Bot] Connecting to ${this.opts?.host}:${this.opts?.port ?? 19132}${
-                this.opts?.username && " as " + this.opts?.username
+            `[Bot] Connecting to ${this.opts.host}:${this.opts.port ?? 19132}${
+                this.opts.username && " as " + this.opts.username
             }...`
         );
 
@@ -172,49 +214,12 @@ class Bot extends EventEmitter {
                     console.log(`[Bot] Removing entity data for player: ${removed_player.username}`);
                     removed_player.removeEntityData();
                     break;
+                case "adventure_settings":
+                    this.user_id = pak.user_id;
+                    console.log(`[Bot] User ID: ${this.user_id}`);
+                    break;
             }
         });
-
-        // this.client.on("player_list", (packet) => {
-        //     // console.dir(packet, { depth: 3 });
-
-        //     if (packet.records.type === "add") {
-        //         this.players = packet.records.records.map((player) => new Player(player, this));
-        //     } else if (packet.records.type === "remove") {
-        //         console.log(
-        //             `[Bot] Removing players: ${JSON.stringify(
-        //                 this.players
-        //                     .filter((player) => packet.records.records.map((x) => x.uuid).includes(player.uuid))
-        //                     .map((x) => x.username)
-        //             )
-        //                 .slice(1, -1)
-        //                 .replace(/"/g, "")}`
-        //         );
-        //         this.players = this.players.filter(
-        //             (player) => !packet.records.records.map((x) => x.uuid).includes(player.uuid)
-        //         );
-        //     }
-        // });
-
-        // this.client.on("add_player", (packet) => {
-        //     // console.log(packet);
-
-        //     const player = this.players.filter((x) => x.uuid === packet.uuid)[0];
-        //     if (!player) return;
-
-        //     console.log(`[Bot] Adding entity data to player: ${player.username}`);
-        //     player.addEntityData(packet);
-        // });
-
-        // this.client.on("remove_entity", (packet) => {
-        //     const player = this.players.filter((x) => x.entity_id === packet.entity_id_self)[0];
-        //     if (!player) return;
-
-        //     console.log(`[Bot] Removing entity data for player: ${player.username}`);
-        //     player.removeEntityData();
-        // });
-
-        // this.client.on("move_player", () => {});
     }
 
     queue(...a) {
@@ -230,25 +235,13 @@ class Bot extends EventEmitter {
      * @param {{x?: number|string, y?: number|string, z?: number|string, target?: string, facing?: {x?: number|string, y?: number|string, z?: number|string, target?: string}}} options
      */
     async teleport({ x, y, z, target, facing }) {
-        if (target) {
-            await this.runCommand(
-                `/tp @s ${target} ${
-                    facing
-                        ? "facing " + facing.target ??
-                          (facing.x ?? "~") + " " + (facing.y ?? "~") + " " + (facing.z ?? "~")
-                        : ""
-                }`
-            );
-        } else {
-            await this.runCommand(
-                `/tp @s ${x ?? "~"} ${y ?? "~"} ${z ?? "~"} ${
-                    facing
-                        ? "facing " + facing.target ??
-                          (facing.x ?? "~") + " " + (facing.y ?? "~") + " " + (facing.z ?? "~")
-                        : ""
-                }`
-            );
-        }
+        await this.runCommand(
+            `/tp @s ${target ?? (x ?? "~") + " " + (y ?? "~") + " " + (z ?? "~")} ${
+                facing
+                    ? "facing " + facing.target ?? (facing.x ?? "~") + " " + (facing.y ?? "~") + " " + (facing.z ?? "~")
+                    : ""
+            }`
+        ).catch(() => {});
     }
 
     close() {
@@ -256,15 +249,16 @@ class Bot extends EventEmitter {
         this.client.close();
     }
 
-    runCommand(command, timeout = 15000) {
-        return new Promise((resolve, reject) => {
+    runCommand(command, origin_type = "player", timeout = 15000) {
+        return new Promise((resolve) => {
             console.log(`[Bot] Running command '${command}'`);
 
             const request_id = uuid();
 
             const listenterTimeout = setTimeout(() => {
-                this.client.off("command_output", listener);
-                reject("Recieved no response from server");
+                this.client.removeListener("command_output", listener);
+                // reject("Recieved no response from server");
+                resolve({ response: false, data: "Timeout reached." });
             }, timeout);
 
             const listener = (packet) => {
@@ -278,7 +272,8 @@ class Bot extends EventEmitter {
             this.client.queue("command_request", {
                 command,
                 origin: {
-                    type: "player",
+                    type: origin_type,
+                    player_entity_id: this.user_id,
                     uuid: request_id,
                     request_id,
                 },

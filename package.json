@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "bedrock-protocol": "^3.13.0"
+    "bedrock-protocol": "^3.13.0",
+    "ws": "^8.6.0"
   }
 }

@@ -2,7 +2,7 @@ const { Bot } = require("..");
 
 const bot = new Bot({
     host: "127.0.0.1",
-    port: 25565,
+    port: parseInt(process.argv[2]),
     profilesFolder: "./msa",
     offline: true,
     username: "CreeperG" + Math.floor(Math.random() * 100),
@@ -15,7 +15,7 @@ bot.on("chat", async ({ message, sender }) => {
 
     if (sender === bot.username) return;
 
-    // bot.chat(`${sender || "Someone"} says ${message}`);
+    bot.chat(`${sender || "Someone"} says ${message}`);
 
     if (message.startsWith(".exec"))
         console.dir(await bot.runCommand(message.substring(6)).catch(() => {}), { depth: null });
@@ -34,7 +34,32 @@ bot.on("chat", async ({ message, sender }) => {
         bot.players.forEach(async (player) => player.runCommand(`/say Hi from ${player.username}!`).catch(() => {}));
 
     if (message.startsWith(".chat")) bot.chat(message.substring(6));
+
+    if (message === ".querytarget")
+        bot.queue("command_request", {
+            command: "/querytarget @s",
+            origin: {
+                type: "dev_console",
+                uuid: "",
+                player_entity_id: bot.user_id,
+                request_id: "",
+            },
+            interval: false,
+        });
+
+    if (message === ".getpos")
+        bot.runCommand(
+            `/${sender === "Server" ? "say" : "w " + sender} ${JSON.stringify(
+                await bot.players.filter((x) => x.username === "CreeperG16")[0]?.getPosition?.()
+            )}`
+        );
 });
+
+// bot.on("command_output", (p) => {
+//     console.dir(p, { depth: null });
+// });
+
+// bot.on("adventure_settings", (advset) => console.log({ advset }));
 
 bot.on("spawn", async () => {
     const {
@@ -47,3 +72,5 @@ bot.on("spawn", async () => {
 
     console.log("[Bot] Location:", x, y, z);
 });
+
+bot.on("automation_client_connect", console.log);
