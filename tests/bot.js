@@ -10,12 +10,13 @@ const bot = new Bot({
     autoReconnect: true,
 });
 
-bot.on("chat", async ({ message, sender }) => {
-    console.log(`[Bot] Chat | ${sender} > ${message}`);
+bot.on("chat", async ({ content: message, sender }) => {
+    console.log(`[Bot] Chat | ${sender.username} > ${message}`);
+    // console.log({ content, sender: { username: sender } });
 
-    if (sender === bot.username) return;
+    if (sender.username === bot.username) return;
 
-    bot.chat(`${sender || "Someone"} says ${message}`);
+    bot.chat(`${sender.username || "Someone"} says ${message}`);
 
     if (message.startsWith(".exec"))
         console.dir(await bot.runCommand(message.substring(6)).catch(() => {}), { depth: null });
@@ -49,7 +50,7 @@ bot.on("chat", async ({ message, sender }) => {
 
     if (message === ".getpos")
         bot.runCommand(
-            `/${sender === "Server" ? "say" : "w " + sender} ${JSON.stringify(
+            `/${sender.username === "Server" ? "say" : "w " + sender.username} ${JSON.stringify(
                 await bot.players.filter((x) => x.username === "CreeperG16")[0]?.getPosition?.()
             )}`
         );

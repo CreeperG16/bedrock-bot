@@ -46,14 +46,13 @@ class Player extends EventEmitter {
      * @returns {Promise<{position: {x: number, y: number, z: number}, dimension: 0|1|2 }>}
      */
     async getPosition() {
-        const testforblock_output = await this.runCommand("/testforblock ~~~ air");
         const {
             output: [
                 {
                     parameters: [x, y, z],
                 },
             ],
-        } = testforblock_output;
+        } = await this.runCommand("/testforblock ~~~ air");
         // console.log(testforblock_output);
 
         const isOverworld =
@@ -66,10 +65,16 @@ class Player extends EventEmitter {
             "commands.fill.outOfWorld";
         // console.log({ isNether });
 
-        return { position: { x, y, z }, dimension: isOverworld ? 0 : isNether ? 1 : 2 };
+        return { x, y, z, dimension: isOverworld ? 0 : isNether ? 1 : 2 };
     }
 
-    addEntityData(data) {
+    async sendMessage(message) {
+        return typeof message === "string"
+            ? await this.runCommand(`/tellraw @s {"rawtext":[{"text":"${message}"}]}`)
+            : typeof message === "object" && (await this.runCommand(`/tellraw @s ${JSON.stringify(message)}`));
+    }
+
+    _addEntityData(data) {
         this.position = {
             ...data.position,
             velocity: data.velocity,
@@ -85,7 +90,7 @@ class Player extends EventEmitter {
         this.entity_data_raw = data;
     }
 
-    removeEntityData() {
+    _removeEntityData() {
         this.last_position = this.position;
         delete this.position;
         delete this.runtime_id;
@@ -93,6 +98,37 @@ class Player extends EventEmitter {
         delete this.metadata;
         delete this.raw_metadata;
         delete this.entity_data_raw;
+    }
+
+    /**
+     * Get a player from a username
+     * @param {string} name
+     * @param {Bot} bot
+     * @returns {Player|undefined} The player with the specified name, or undefined if no such player exists
+     */
+    static fromName(name, bot) {
+        return bot.getPlayers().filter((x) => x.username === name)[0];
+    }
+}
+
+class Message {
+    constructor(packet, bot) {
+        this.sender = bot
+            .getPlayers()
+            .filter((x) =>
+                packet.source_name
+                    ? x.username === packet.source_name
+                    : packet.message.startsWith("* ") && packet.message.substring(2).startsWith(x.username)
+            )[0] ?? {
+            username: packet.source_name ?? packet.message.starrt,
+        };
+
+        this.content =
+            packet.type === "announcement"
+                ? packet.message.replace("[" + packet.source_name + "] ", "")
+                : packet.message.startsWith(`* ${this.sender.username}`)
+                ? packet.message.replace(`* ${this.sender.username}`, "")
+                : packet.message;
     }
 }
 
@@ -170,13 +206,14 @@ class Bot extends EventEmitter {
             switch (name) {
                 case "text":
                     (pak.type === "chat" || pak.type === "announcement") &&
-                        this.emit("chat", {
-                            message:
-                                pak.type === "announcement"
-                                    ? pak.message.replace("[" + pak.source_name + "] ", "")
-                                    : pak.message,
-                            sender: pak.source_name || pak.message.replace(/\* (\S+) (.+)/g, (...[, s]) => s),
-                        });
+                        // this.emit("chat", {
+                        //     message:
+                        //         pak.type === "announcement"
+                        //             ? pak.message.replace("[" + pak.source_name + "] ", "")
+                        //             : pak.message,
+                        //     sender: pak.source_name || pak.message.replace(/\* (\S+) (.+)/g, (...[, s]) => s),
+                        // });
+                        this.emit("chat", new Message(pak, this));
                     break;
                 case "player_list":
                     if (pak.records.type === "add") {
@@ -204,7 +241,7 @@ class Bot extends EventEmitter {
                     if (!added_player) return;
 
                     console.log(`[Bot] Adding entity data to player: ${added_player.username}`);
-                    added_player.addEntityData(pak);
+                    added_player._addEntityData(pak);
 
                     break;
                 case "remove_entity":
@@ -212,7 +249,7 @@ class Bot extends EventEmitter {
                     if (!removed_player) return;
 
                     console.log(`[Bot] Removing entity data for player: ${removed_player.username}`);
-                    removed_player.removeEntityData();
+                    removed_player._removeEntityData();
                     break;
                 case "adventure_settings":
                     this.user_id = pak.user_id;
@@ -228,6 +265,10 @@ class Bot extends EventEmitter {
 
     write(...a) {
         this.client.write(...a);
+    }
+
+    getPlayers() {
+        return [...this.players];
     }
 
     /**
@@ -290,6 +331,25 @@ class Bot extends EventEmitter {
             platform_chat_id: "",
             message,
         });
+    }
+
+    async tellraw(message, selector = "@a") {
+        if (typeof message === "string")
+            return await this.runCommand(`/tellraw ${selector} {"rawtext":[{"text":"${message}"}]}`);
+        else if (typeof message === "object")
+            return await this.runCommand(`/tellraw ${selector} ${JSON.stringify(message)}`);
+    }
+
+    async getPosition() {
+        const {
+            output: [
+                {
+                    parameters: [x, y, z],
+                },
+            ],
+        } = await this.runCommand("/testforblock ~~~ air");
+
+        return { x, y, z };
     }
 }
 
