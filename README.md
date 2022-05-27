@@ -45,6 +45,10 @@ bot.on("chat", ({ message, sender }) => {
 
 ### Raw chat messages
 
+```ts
+Bot.tellraw(message: string|object) => Promise<void>
+```
+
 Sends a raw chat message. Default selector is `@a`. You can also use a raw JSON text object - click [here](https://minecraft.fandom.com/wiki/Raw_JSON_text_format#Bedrock_Edition) to learn more
 
 ```js
@@ -55,11 +59,14 @@ await bot.tellraw({ rawtext: [{ text: "Hello to a random player called " }, { se
 
 ### Running commands
 
+```ts
+Bot.runCommand(command: string) => Promise<commandResponse>
+```
+Runs a command as the bot in the connected server.
+
 ```js
 await bot.runCommand("/title @a title Hello!");
 ```
-
--   `bot.runCommand(command: string)` Run a command as the bot
 
 ### Teleport
 
